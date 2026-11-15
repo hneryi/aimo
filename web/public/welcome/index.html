@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fbf7ec">
+  <meta name="description" content="Aimo – ammattikeittiön ostoapuri">
+  <title>Aimo</title>
+  <link rel="icon" type="image/png" href="/mascot-192.png">
+  <link rel="apple-touch-icon" href="/mascot-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fredoka:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Same palette and typefaces as the app (web/src/styles.css). */
+    :root {
+      --cream: #fbf7ec; --paper: #fffdf8; --line: #e6dec8;
+      --forest: #1d3a24; --forest-2: #2e5636; --muted: #556455;
+      --leaf: #7cb342; --leaf-soft: #e8f2d6; --leaf-line: #c3da9c;
+      --display: 'Fredoka', 'Figtree', ui-rounded, system-ui, sans-serif;
+      --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--cream); color: var(--forest); font-family: var(--body); font-size: 18px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--leaf); outline-offset: 4px; border-radius: 8px; }
+
+    .page { display: grid; grid-template-rows: auto 1fr auto; min-height: 100svh; width: min(1120px, 100% - 48px); margin: 0 auto; }
+
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0; }
+    .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 600; font-size: 30px; letter-spacing: .01em; }
+    .logo img { width: 46px; height: auto; }
+    .langs { display: flex; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); }
+    .langs button { border: 0; background: none; color: var(--muted); font: 600 14px var(--body); padding: 7px 13px; border-radius: 999px; cursor: pointer; }
+    .langs button[aria-pressed="true"] { background: var(--forest); color: var(--paper); }
+
+    .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: center; gap: clamp(28px, 6vw, 84px); padding: 16px 0 56px; }
+
+    /* The greeting is what Aimo says: the headline sits in a speech bubble whose tail points at the mascot. */
+    .bubble { position: relative; width: fit-content; max-width: 100%; margin: 0; padding: clamp(20px, 3vw, 34px) clamp(24px, 3.6vw, 46px); background: var(--paper); border: 2px solid var(--forest); border-radius: 36px; box-shadow: 6px 8px 0 var(--leaf-line); font-family: var(--display); font-weight: 600; font-size: clamp(40px, 6vw, 80px); line-height: 1.05; }
+    .bubble::after { content: ""; position: absolute; top: 56%; right: -15px; width: 28px; height: 28px; background: var(--paper); border: 2px solid var(--forest); border-bottom-color: transparent; border-left-color: transparent; border-top-right-radius: 7px; transform: rotate(45deg); }
+    .lead { max-width: 33em; margin: 34px 0 0; color: var(--forest-2); font-size: clamp(18px, 1.55vw, 21px); }
+    .go { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 28px; margin-top: 32px; }
+    .enter { display: inline-flex; align-items: center; justify-content: center; min-height: 60px; padding: 0 34px; border-radius: 999px; background: var(--forest); color: var(--paper); text-decoration: none; font-family: var(--display); font-weight: 600; font-size: 21px; box-shadow: 4px 5px 0 var(--leaf); transition: transform .14s ease, box-shadow .14s ease; }
+    .enter:hover { transform: translate(-1px, -2px); box-shadow: 6px 8px 0 var(--leaf); }
+    .enter:active { transform: translate(3px, 4px); box-shadow: 1px 1px 0 var(--leaf); }
+    .docs { color: var(--forest-2); font-weight: 600; text-underline-offset: 4px; }
+
+    .aimo { position: relative; isolation: isolate; display: grid; place-items: center; animation: arrive .9s cubic-bezier(.3, 1.35, .5, 1) .2s both; }
+    .aimo::before { content: ""; position: absolute; z-index: -1; width: 92%; aspect-ratio: 1; border-radius: 50%; background: var(--leaf-soft); }
+    .aimo::after { content: ""; position: absolute; z-index: -1; bottom: 5%; width: 56%; height: 7%; border-radius: 50%; background: rgba(29, 58, 36, .12); }
+    .aimo img { display: block; width: min(100%, 520px); height: auto; transition: transform .28s cubic-bezier(.3, 1.6, .5, 1); }
+    /* Aimo hops when you reach for the button. */
+    .hero:has(.enter:hover) .aimo img, .hero:has(.enter:focus-visible) .aimo img { transform: translateY(-16px) rotate(-2deg); }
+    @keyframes arrive { from { opacity: 0; transform: translateY(46px) scale(.95); } 60% { opacity: 1; transform: translateY(-14px) scale(1); } to { opacity: 1; transform: none; } }
+
+    footer { padding: 18px 0 calc(24px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+
+    @media (max-width: 820px) {
+      .page { width: min(1120px, 100% - 36px); }
+      .top { padding: 16px 0; }
+      .logo { font-size: 26px; }
+      .logo img { width: 40px; }
+      .langs button { padding: 6px 10px; font-size: 13px; }
+      .hero { grid-template-columns: 1fr; gap: 26px; padding: 4px 0 36px; }
+      .aimo { order: -1; justify-self: start; width: min(58%, 250px); margin-left: 6px; }
+      .bubble { border-radius: 30px; }
+      .bubble::after { top: -15px; right: auto; left: 62px; border-color: var(--forest); border-bottom-color: transparent; border-right-color: transparent; border-radius: 7px 0 0 0; }
+      .lead { margin-top: 26px; }
+      .go { margin-top: 26px; }
+      .enter { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) { .aimo { animation: none; } .aimo img, .enter { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <a class="logo" href="/welcome/"><img src="/mascot-192.png" alt="" width="192" height="181"><span>Aimo</span></a>
+      <div class="langs" id="langs" role="group" aria-label="Kieli">
+        <button type="button" data-lang="fi" aria-pressed="true">Suomi</button>
+        <button type="button" data-lang="sv" aria-pressed="false">Svenska</button>
+        <button type="button" data-lang="en" aria-pressed="false">English</button>
+      </div>
+    </header>
+
+    <main class="hero">
+      <div>
+        <h1 class="bubble"><span id="hello1">Tervetuloa!</span><br><span id="hello2">Olen Aimo.</span></h1>
+        <p class="lead" id="lead">Autan ammattikeittiötä tilaamaan tukusta: haen tuotteet, hinnat ja saatavuuden, tarkistan allergeenit ja vien tilauksen oikean ihmisen hyväksyttäväksi. Ostoagentti voi tehdä saman avoimen rajapinnan kautta.</p>
+        <div class="go">
+          <a class="enter" id="enter" href="/">Hyppää sisään</a>
+          <a class="docs" id="docs" href="/docs/">Lue, miten ostoagentti liittyy</a>
+        </div>
+      </div>
+      <div class="aimo">
+        <img id="mascot" src="/mascot-large.png" width="1040" height="979" alt="Aimo, hymyilevä vihreä ostoskori, jolla on kädessään tarkistuslista ja aimo-maitotölkki" fetchpriority="high">
+      </div>
+    </main>
+
+    <footer id="foot">Itsenäinen konsepti Junction 2026 -haasteeseen. Kaikki tuote- ja hintatiedot ovat synteettistä haastedataa.</footer>
+  </div>
+
+  <script>
+    // Same storage key and languages as the app, so the choice made here carries over.
+    var KEY = 'aimo.lang';
+    var T = {
+      fi: {
+        langs: 'Kieli', hello1: 'Tervetuloa!', hello2: 'Olen Aimo.',
+        lead: 'Autan ammattikeittiötä tilaamaan tukusta: haen tuotteet, hinnat ja saatavuuden, tarkistan allergeenit ja vien tilauksen oikean ihmisen hyväksyttäväksi. Ostoagentti voi tehdä saman avoimen rajapinnan kautta.',
+        enter: 'Hyppää sisään', docs: 'Lue, miten ostoagentti liittyy',
+        mascot: 'Aimo, hymyilevä vihreä ostoskori, jolla on kädessään tarkistuslista ja aimo-maitotölkki',
+        foot: 'Itsenäinen konsepti Junction 2026 -haasteeseen. Kaikki tuote- ja hintatiedot ovat synteettistä haastedataa.',
+        description: 'Aimo – ammattikeittiön ostoapuri'
+      },
+      sv: {
+        langs: 'Språk', hello1: 'Välkommen!', hello2: 'Jag är Aimo.',
+        lead: 'Jag hjälper storkök att beställa från grossisten: jag hämtar produkter, priser och tillgänglighet, kontrollerar allergener och skickar ordern till rätt person för godkännande. En inköpsagent kan göra samma sak via ett öppet gränssnitt.',
+        enter: 'Hoppa in', docs: 'Läs hur en inköpsagent ansluter',
+        mascot: 'Aimo, en leende grön varukorg som håller en checklista och en mjölkförpackning märkt aimo',
+        foot: 'Ett fristående koncept för Junction 2026-utmaningen. All produkt- och prisdata är syntetisk utmaningsdata.',
+        description: 'Aimo – storkökets inköpshjälp'
+      },
+      en: {
+        langs: 'Language', hello1: 'Welcome!', hello2: 'I’m Aimo.',
+        lead: 'I help professional kitchens order from the wholesaler: I look up products, prices and availability, check allergens and send the order to the right person for approval. A purchasing agent can do the same through an open interface.',
+        enter: 'Hop in', docs: 'Read how a purchasing agent connects',
+        mascot: 'Aimo, a smiling green shopping basket holding a checklist and a milk carton labelled aimo',
+        foot: 'An independent concept for the Junction 2026 challenge. All product and price data is synthetic challenge data.',
+        description: 'Aimo – the purchasing assistant for professional kitchens'
+      }
+    };
+    function saved() {
+      try { var s = localStorage.getItem(KEY); if (s && Object.prototype.hasOwnProperty.call(T, s)) return s; } catch (e) { /* storage unavailable */ }
+      return 'fi';
+    }
+    function show(lang) {
+      var t = T[lang];
+      document.documentElement.lang = lang;
+      ['hello1', 'hello2', 'lead', 'enter', 'docs', 'foot'].forEach(function (id) { document.getElementById(id).textContent = t[id]; });
+      document.getElementById('mascot').alt = t.mascot;
+      document.getElementById('langs').setAttribute('aria-label', t.langs);
+      document.querySelector('meta[name="description"]').content = t.description;
+      document.querySelectorAll('#langs button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.lang === lang)); });
+    }
+    document.getElementById('langs').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-lang]');
+      if (!b) return;
+      try { localStorage.setItem(KEY, b.dataset.lang); } catch (err) { /* storage unavailable */ }
+      show(b.dataset.lang);
+    });
+    // the app sends a new tab here first; this flag lets "Hop in" through
+    document.getElementById('enter').addEventListener('click', function () {
+      try { sessionStorage.setItem('aimo.entered', '1'); } catch (err) { /* storage unavailable */ }
+    });
+    show(saved());
+  </script>
+</body>
+</html>

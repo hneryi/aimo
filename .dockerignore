@@ -1,0 +1,12 @@
+**/node_modules
+data
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+web/src
+server/test
+scripts
+*.log

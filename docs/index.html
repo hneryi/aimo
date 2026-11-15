@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Aimo agent interface</title>
+<meta name="description" content="Open MCP interface for external purchasing agents: tools, order lifecycle, quotes, idempotency, error codes and provenance.">
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --surface-2: #f0eee8;
+    --text: #1d2420;
+    --muted: #5d665f;
+    --line: #dedbd2;
+    --accent: #0b6b4f;
+    --accent-soft: #e2f1ea;
+    --code-bg: #f1efe9;
+    --ok: #0b6b4f;      --ok-bg: #e2f1ea;
+    --warn: #8a5a00;    --warn-bg: #fbefd2;
+    --stop: #a12b2b;    --stop-bg: #f9e3e1;
+    --info: #2b5c8a;    --info-bg: #e3eef8;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141816;
+      --surface: #1c221f;
+      --surface-2: #232a26;
+      --text: #e7ebe8;
+      --muted: #a3ada6;
+      --line: #313a35;
+      --accent: #6fd3ae;
+      --accent-soft: #1d3a30;
+      --code-bg: #101412;
+      --ok: #7fdcb8;    --ok-bg: #1d3a30;
+      --warn: #f0c36a;  --warn-bg: #3d3115;
+      --stop: #f29c96;  --stop-bg: #43201e;
+      --info: #9cc6ee;  --info-bg: #1c2f42;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 var(--sans);
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px 72px; }
+  header.top { padding: 40px 0 8px; }
+  .eyebrow { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 650; margin: 0 0 6px; }
+  h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -.01em; text-wrap: balance; }
+  h2 { font-size: 23px; line-height: 1.25; margin: 48px 0 12px; padding-top: 8px; letter-spacing: -.005em; }
+  h3 { font-size: 17px; margin: 28px 0 8px; }
+  p { margin: 0 0 14px; }
+  .lead { font-size: 18px; color: var(--muted); max-width: 62ch; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin: 4px 0; }
+  code { font: 0.9em var(--mono); background: var(--code-bg); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
+  pre {
+    font: 13.5px/1.55 var(--mono); background: var(--code-bg); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px 16px; margin: 0 0 16px; overflow-x: auto; white-space: pre; tab-size: 2;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; padding: 0; }
+  nav.toc a {
+    font-size: 14px; text-decoration: none; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+  }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+  .notice {
+    background: var(--warn-bg); color: var(--text); border: 1px solid var(--line); border-left: 4px solid var(--warn);
+    border-radius: var(--radius); padding: 12px 14px; margin: 20px 0 0; font-size: 15px;
+  }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin: 0 0 16px; padding: 0; list-style: none; }
+  .facts li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 0; }
+  .facts b { display: block; font-size: 12.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 650; margin-bottom: 2px; }
+  .table { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); font-weight: 650; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { white-space: nowrap; }
+  td.wrapok:first-child { white-space: normal; }
+  .pill { display: inline-block; font: 600 12px/1 var(--sans); padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.warn { color: var(--warn); background: var(--warn-bg); }
+  .pill.stop { color: var(--stop); background: var(--stop-bg); }
+  .pill.info { color: var(--info); background: var(--info-bg); }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin: 0 0 10px; }
+  summary { cursor: pointer; padding: 11px 14px; font-weight: 600; list-style: none; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; font: 600 16px var(--mono); color: var(--accent); width: 12px; flex: none; }
+  details[open] > summary::before { content: "−"; }
+  summary code { font-size: 15px; background: none; padding: 0; }
+  summary span { font-weight: 400; color: var(--muted); font-size: 14.5px; }
+  details > .body { padding: 2px 14px 12px; border-top: 1px solid var(--line); }
+  details > .body > :first-child { margin-top: 12px; }
+  .flow { display: grid; gap: 10px; margin: 0 0 16px; }
+  .flow .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .box h4 { margin: 0 0 4px; font-size: 15px; }
+  .box p, .box ul { margin: 0; font-size: 14.5px; color: var(--muted); }
+  .box ul { padding-left: 18px; }
+  .box.accent { border-color: var(--accent); background: var(--accent-soft); }
+  .arrow { text-align: center; color: var(--muted); font-size: 18px; line-height: 1; }
+  @media (max-width: 560px) { .flow .row { grid-template-columns: 1fr; } }
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Aimo · open interface for purchasing agents</p>
+  <h1>Agent interface</h1>
+  <p class="lead">Aimo lets an external purchasing agent search a food-service wholesaler assortment, check allergens with evidence, get a fixed-price quote and order inside the authority it was granted. Everything else goes to a human for sign-off.</p>
+  <p>The interface is the <a href="https://modelcontextprotocol.io">Model Context Protocol</a> over Streamable HTTP. The agent proposes; the same deterministic rules that guard the Aimo kitchen UI decide. No language model takes part in an allergen verdict, a price or an approval.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#connect">Connect</a>
+    <a href="#tools">Tools</a>
+    <a href="#lifecycle">Order lifecycle</a>
+    <a href="#quotes">Quotes and idempotency</a>
+    <a href="#authority">Authority</a>
+    <a href="#partial">Partial availability</a>
+    <a href="#errors">Error codes</a>
+    <a href="#trust">Provenance</a>
+    <a href="#signatures">Signatures</a>
+    <a href="#approvers">Approvers</a>
+    <a href="#audit">Audit chain</a>
+    <a href="#limits">Limitations</a>
+  </nav>
+  <p class="notice"><strong>What is real and what is simulated.</strong> Catalog, price and availability come from the Valio Aimo Junction 2026 challenge data and its live mock API. Order submission is a local simulation: the mock has no order endpoint, so nothing is sent to Valio Aimo. Every order says so in its <code>integration</code> field.</p>
+</header>
+
+<main>
+
+<h2 id="connect">Connect</h2>
+<ul class="facts">
+  <li><b>Protocol</b>MCP, Streamable HTTP, JSON-RPC 2.0</li>
+  <li><b>Endpoint</b><code>POST /mcp</code> on this host</li>
+  <li><b>Authentication</b><code>Authorization: Bearer &lt;agent token&gt;</code>. A missing, wrong, revoked or expired token gets HTTP 401.</li>
+  <li><b>Sessions</b>None. The server is stateless; every POST stands alone.</li>
+  <li><b>Required headers</b><code>Content-Type: application/json</code><br><code>Accept: application/json, text/event-stream</code></li>
+</ul>
+<div class="table">
+<table>
+  <thead><tr><th></th><th>Registered agent</th><th>Shared demo token</th></tr></thead>
+  <tbody>
+    <tr><td>Token</td><td><code>aimo-agt-…</code>, created by a person in the Aimo UI (menu, "Ordering limits"). Shown once. The server keeps only its SHA-256, so no endpoint or file can give it back.</td><td><code>AGENT_TOKEN</code>: one token for everyone</td></tr>
+    <tr><td>Agent name</td><td>The registered name. <code>X-Agent-Name</code> is ignored.</td><td><code>X-Agent-Name</code>, self-declared and not verified</td></tr>
+    <tr><td>Account</td><td>The account it was registered for. Another account in <code>X-Aimo-Account</code> gets HTTP 403.</td><td><code>X-Aimo-Account: school | wedding | hotel | cafe</code> (default <code>school</code>)</td></tr>
+    <tr><td>Authority</td><td>Its own per-order limit, weekly limit and expiry; a person can change or revoke it at any time</td><td>The account's shared limit (EUR 500 for <code>school</code>)</td></tr>
+    <tr><td>In answers</td><td><code>identity: "registered"</code>, actor <code>Registered agent (&lt;name&gt;)</code></td><td><code>identity: "self_declared"</code>, actor <code>External agent (&lt;name&gt;)</code></td></tr>
+  </tbody>
+</table>
+</div>
+<p>Responses are framed as one server-sent event: an <code>event: message</code> line and a <code>data:</code> line with the JSON-RPC response. The MCP URL and the address of the signing key are shown in the Aimo UI and returned by <a href="/api/agent-info?lang=en"><code>GET /api/agent-info</code></a>. The shared demo token is included there in open demo mode; when approvers are configured, only for a signed-in approver. The examples below use the shared demo token.</p>
+
+<h3>Initialize and call a tool with curl</h3>
+<pre><code>export AIMO_URL=http://localhost:8787
+export AIMO_TOKEN=&lt;agent token&gt;
+
+# initialize
+curl -s -X POST "$AIMO_URL/mcp" \
+  -H "Authorization: Bearer $AIMO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "X-Agent-Name: menu-planner-agent" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}'
+
+# tools/call: quote 1,000 L of lactose-free milk for Monday
+curl -s -X POST "$AIMO_URL/mcp" \
+  -H "Authorization: Bearer $AIMO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "X-Agent-Name: menu-planner-agent" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"prepare_order","arguments":{"delivery_date":"2026-11-16","requirements":["lactose_free"],"need":{"query":"laktoositon maitojuoma","amount":1000,"unit":"L"}}}}' \
+  | sed -n 's/^data: //p'</code></pre>
+<p>The <code>initialize</code> answer:</p>
+<pre><code>event: message
+data: {"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":true}},
+       "serverInfo":{"name":"aimo-purchasing","version":"1.0.0"},"instructions":"Aimo exposes a
+       food-service wholesaler assortment … in multiples of order_multiple."},"jsonrpc":"2.0","id":1}</code></pre>
+<p>A successful tool call returns its payload as <code>structuredContent</code> and as JSON text in <code>content[0].text</code>. A refused call returns <code>isError: true</code> with a JSON text <code>{ "error": "&lt;code&gt;", "message": "…" }</code>. Every tool takes an optional <code>lang</code> (<code>fi</code>, <code>sv</code>, <code>en</code>; default <code>en</code>) for the human-readable strings.</p>
+
+<h2 id="tools">Tools</h2>
+<p>The typical flow is <code>get_authority</code> → <code>search_products</code> → <code>prepare_order</code> → <code>place_order</code> when inside the authority, otherwise <code>request_approval</code> → <code>get_order_status</code>.</p>
+<div class="table">
+<table>
+  <thead><tr><th>Tool</th><th>What it does</th><th>Main parameters</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>get_authority</code></td><td>The agent's own authorisation (limits, what is left of its weekly limit, expiry), whether its identity is registered or self-declared, the account's budget, the rules, supported requirements</td><td>none</td><td><span class="pill info">read</span></td></tr>
+    <tr><td><code>search_products</code></td><td>Catalog search. Each product comes with pack size, ingredients, declared allergens, a verdict with evidence per requirement, live price and availability</td><td><code>query</code>, <code>requirements</code>, <code>delivery_date</code>, <code>only_suitable</code>, <code>limit</code></td><td><span class="pill info">read</span></td></tr>
+    <tr><td><code>get_price_availability</code></td><td>Fresh price and availability for up to 30 product ids</td><td><code>product_ids</code>, <code>delivery_date</code></td><td><span class="pill info">read</span></td></tr>
+    <tr><td><code>check_allergens</code></td><td>Verdicts with supplier evidence for one product</td><td><code>product_id</code>, <code>requirements</code></td><td><span class="pill info">read</span></td></tr>
+    <tr><td><code>prepare_order</code></td><td>One fixed-price quote for a whole order: explicit items, needs such as "1,000 L lactose-free milk" that Aimo sources, ranks and splits when availability is partial, or both together. The quote is also returned signed (<code>signed_quote</code>)</td><td><code>delivery_date</code>, <code>requirements</code>, <code>items</code>, <code>needs</code>, <code>need</code></td><td><span class="pill warn">stores a quote</span></td></tr>
+    <tr><td><code>place_order</code></td><td>Places a quoted order. Works only inside the agent's authority</td><td><code>quote_id</code>, <code>idempotency_key</code></td><td><span class="pill stop">creates an order</span></td></tr>
+    <tr><td><code>request_approval</code></td><td>Sends a quoted order to a human. It appears in the Aimo UI</td><td><code>quote_id</code>, <code>idempotency_key</code>, <code>note</code></td><td><span class="pill stop">creates an order</span></td></tr>
+    <tr><td><code>get_order_status</code></td><td>Status, approval decision, re-check result, confirmation (signed once submitted: <code>signed_confirmation</code>) and event history</td><td><code>order_id</code></td><td><span class="pill info">read</span></td></tr>
+    <tr><td><code>list_orders</code></td><td>The 15 most recent orders with status and totals</td><td>none</td><td><span class="pill info">read</span></td></tr>
+    <tr><td><code>get_audit_log</code></td><td>Hash-chained record of actions and approvals</td><td><code>order_id</code>, <code>limit</code></td><td><span class="pill info">read</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Dietary requirements and verdicts</h3>
+<p>Supported: <code>gluten_free</code>, <code>wheat_free</code>, <code>lactose_free</code>, <code>milk_free</code>, <code>egg_free</code>, <code>nut_free</code>, <code>soy_free</code>, <code>fish_free</code>.</p>
+<div class="table">
+<table>
+  <thead><tr><th>Verdict</th><th>Meaning</th><th>Orderable for that requirement</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill ok">ok</span></td><td>Verified from supplier data</td><td>Yes</td></tr>
+    <tr><td><span class="pill stop">fail</span></td><td>Contains or may contain the allergen</td><td>No</td></tr>
+    <tr><td><span class="pill warn">unknown</span></td><td>Supplier data is missing or contradicts itself</td><td>No</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>Gluten-free is not wheat-free, and lactose-free is not milk-free.</strong> A product with a gluten-free claim may contain gluten-free wheat starch, which fails <code>wheat_free</code>. Lactose-free milk fails <code>milk_free</code>. Pass exactly the requirements the end consumer has.</p>
+
+<h3>Parameters and examples</h3>
+
+<details>
+  <summary><code>search_products</code> <span>search with verdicts, price and availability</span></summary>
+  <div class="body">
+    <div class="table"><table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>query</code></td><td>string, required</td><td>Search words. The catalog is Finnish; Swedish and English names and brands also match. Every word must occur.</td></tr>
+        <tr><td><code>requirements</code></td><td>string[]</td><td>Requirements to check each product against</td></tr>
+        <tr><td><code>delivery_date</code></td><td>YYYY-MM-DD</td><td>Default: next Monday</td></tr>
+        <tr><td><code>only_suitable</code></td><td>boolean</td><td>Only products that are <code>ok</code> for all requirements</td></tr>
+        <tr><td><code>limit</code></td><td>1–20</td><td>Default 8</td></tr>
+      </tbody>
+    </table></div>
+    <p>One product from a real answer:</p>
+<pre><code>{
+  "product_id": "463335",
+  "name": "Valio Eila® 3 % milk drink 1 l lactose free",
+  "brand": "Valio", "vendor": "VALIO OY TUORE", "gtin": "6408430000296",
+  "sales_unit": "ST", "pack": { "amount": 1, "unit": "L" },
+  "ingredients": "MILK, vitamin D.",
+  "declared_allergens": { "contains": ["milk"], "mayContain": [], "freeFrom": [] },
+  "claims": ["Lactose-free", "Vegetarian"],
+  "supplier_data_updated": "2025-09-29",
+  "delivery_reliability_history": 1,
+  "co2_kg_per_kg_category_average": 1.1,
+  "requirement_checks": [ {
+    "requirement": "lactose_free", "verdict": "ok",
+    "summary": "Suitable: lactose-free. Verified from supplier data.",
+    "evidence": [
+      { "kind": "claim", "tone": "ok", "text": "Supplier claim: lactose-free." },
+      { "kind": "declared", "tone": "info", "text": "Note: the product contains milk – lactose-free does not mean milk-free." } ]
+  } ],
+  "suitable": true,
+  "offer": {
+    "price_eur_excl_vat_per_sales_unit": 1.4, "price_eur_incl_vat": 1.59, "vat_rate": 13.5,
+    "comparison_price": 1.4, "comparison_unit": "L",
+    "availability": "unknown_qty", "available_sales_units": null,
+    "available_date": "2026-11-16",
+    "order_cutoff": "2026-11-15T17:00:00+0200", "cutoff_passed": false,
+    "note": "Orderable for Mon 16 Nov · quantity not stated (terminal product)",
+    "source": "valio_mock", "observed_at": "2026-11-14T18:15:24.476Z", "error": null
+  }
+}</code></pre>
+    <p><code>availability</code> is <code>available</code> (quantity stated), <code>unknown_qty</code> (orderable, no quantity stated), <code>unavailable</code> (sales block) or <code>no_data</code>.</p>
+  </div>
+</details>
+
+<details>
+  <summary><code>check_allergens</code> <span>why a product does or does not fit</span></summary>
+  <div class="body">
+    <div class="table"><table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>product_id</code></td><td>string, required</td><td></td></tr>
+        <tr><td><code>requirements</code></td><td>string[]</td><td>Default: all eight</td></tr>
+      </tbody>
+    </table></div>
+    <p>A gluten-free bread checked for both gluten-free and wheat-free. The supplier declares it free from gluten cereals, yet the ingredient list shows wheat starch:</p>
+<pre><code>"requirement_checks": [
+  { "requirement": "gluten_free", "verdict": "ok",
+    "summary": "Suitable: gluten-free. Verified from supplier data.",
+    "evidence": [
+      { "kind": "claim", "tone": "ok", "text": "Supplier claim: gluten-free (regulated claim, below 20 mg/kg gluten)." },
+      { "kind": "ingredient", "tone": "info", "text": "Contains gluten-free wheat starch (”GLUTEENITON VEHNÄTÄRKKELYS”) – not suitable for a wheat-free diet." } ] },
+  { "requirement": "wheat_free", "verdict": "fail",
+    "summary": "Not suitable: wheat-free. In the ingredient list: ”GLUTEENITON VEHNÄTÄRKKELYS”. Gluten-free wheat starch is still derived from wheat – fine for a gluten-free diet, not for a wheat-free one.",
+    "evidence": [
+      { "kind": "ingredient", "tone": "fail", "text": "In the ingredient list: ”GLUTEENITON VEHNÄTÄRKKELYS”. …" },
+      { "kind": "claim", "tone": "info", "text": "The product carries a gluten-free claim. That says nothing about wheat, so it is not used for this check." } ] }
+],
+"suitable": false</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary><code>prepare_order</code> <span>fixed-price quote</span></summary>
+  <div class="body">
+    <div class="table"><table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>delivery_date</code></td><td>YYYY-MM-DD, required</td><td></td></tr>
+        <tr><td><code>requirements</code></td><td>string[]</td><td>Applied to every line</td></tr>
+        <tr><td><code>items</code></td><td>{ product_id, quantity, substitute_for? }[]</td><td>Explicit products. Quantity is a whole number of sales units and a multiple of the product's <code>order_multiple</code>; it is never changed for you.</td></tr>
+        <tr><td><code>needs</code></td><td>need[], 1–20</td><td>Needs to source, each on its own. A need without a verified, orderable product is reported and does not stop the others.</td></tr>
+        <tr><td><code>need</code></td><td>{ query, amount, unit, product_id?, substitute_for? }</td><td>A single need. <code>unit</code> is <code>L</code>, <code>kg</code> or <code>pcs</code>. With <code>product_id</code> only that product is used.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Give <code>items</code>, <code>needs</code>, <code>need</code> or a combination: everything goes into one quote. With needs the answer carries <code>fulfilment_by_need</code>, one entry per need with <code>status</code> (<code>covered</code>, <code>partial</code>, <code>not_found</code>, <code>selection_required</code>), <code>requested</code>, <code>covered</code>, <code>shortfall</code>, its <code>lines</code>, <code>ranked_options</code> and <code>excluded_by_rules</code>. The top-level <code>fulfilment</code>, <code>ranked_options</code> and <code>excluded_by_rules</code> are given when there was exactly one need. Recorded prices for 1,000 L of lactose-free milk, shortened; option fields illustrate the current schema (not a new live run):</p>
+<pre><code>{
+  "quote_id": "Q-B541504AFB",
+  "expires_at": "2026-11-14T18:30:25.181Z",
+  "content_sha256": "dbaa03d70fb828edfd9bcaa0c1c23bb894a7674a600fa9db5b1932a62224b582",
+  "delivery_date": "2026-11-16",
+  "requirements": ["lactose_free"],
+  "currency": "EUR",
+  "lines": [ {
+    "product_id": "464306",
+    "name": "Valio Hyvä suomalainen Arki® Eila® semi skimmed milk drink 1 l lactose free",
+    "quantity": 1000, "sales_unit": "ST", "pack": { "amount": 1, "unit": "L" },
+    "unit_price_excl_vat": 1.01, "line_total_excl_vat": 1010,
+    "why": "Cheapest product meeting the requirements (€1.01/L).",
+    "requirement_checks": [ { "requirement": "lactose_free", "verdict": "ok", "summary": "…" } ]
+  } ],
+  "total_excl_vat": 1010, "vat": 136.35, "total_incl_vat": 1146.35,
+  "fulfilment": { "requested": 1000, "covered": 1000, "shortfall": 0, "unit": "L", "split_across_products": 1 },
+  "ranked_options": [
+    { "product_id": "464306", "roles": [{ "role": "cheapest", "label": "Cheapest" }, { "role": "most_reliable", "label": "Most reliable" }],
+      "basis": { "cost_to_cover_eur_excl_vat": 1010, "sales_units": 1000, "covered_amount": 1000,
+        "delivery_reliability_history": 1, "packaging_labels": ["GOODS_FROM_FINLAND_BLUE_SWAN"],
+        "country_of_origin": "fi", "co2_kg_per_kg_category_average": 1.1 },
+      "availability": "unknown_qty", "delivery_reliability_history": 1 } ],
+  "excluded_by_rules": { "failed": 0, "unknown": 0, "examples": [] },
+  "within_agent_authority": false,
+  "approval_required_because": [
+    "Total €1,010.00 exceeds the agent’s ordering authority of €500.00." ],
+  "next_step": "request_approval"
+}</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary><code>place_order</code> <span>order inside the agent's authority</span></summary>
+  <div class="body">
+    <div class="table"><table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>quote_id</code></td><td>string, required</td><td>From <code>prepare_order</code></td></tr>
+        <tr><td><code>idempotency_key</code></td><td>string, min 8 chars, required</td><td>Unique per intended order</td></tr>
+      </tbody>
+    </table></div>
+    <p>Price, availability and allergens are checked again with fresh data. Inside the authority the order is created, approved by the rules and submitted (simulated):</p>
+<pre><code>{ "duplicate": false,
+  "order": {
+    "order_id": "AIMO-2026-0003", "status": "submitted", "status_label": "Sent (simulation)",
+    "created_by": "External agent (menu-planner-agent)", "delivery_date": "2026-11-16",
+    "total_excl_vat": 45.84, "vat": 6.19, "total_incl_vat": 52.03,
+    "approval": { "required": false, "reasons": [], "decidedBy": "Aimo rules", "decidedAt": "2026-11-14T18:16:21.642Z" },
+    "recheck": { "at": "2026-11-14T18:16:21.642Z", "ok": true, "changes": [] },
+    "confirmation": "SIM-10D7CE17",
+    "integration": { "prices": "valio_mock", "availability": "valio_mock", "submission": "local_simulation", "note": "…" },
+    "lines": [ { "product_id": "474235", "quantity": 2, "unit_price_excl_vat": 22.92, "line_total_excl_vat": 45.84 } ] } }</code></pre>
+    <p>Outside the authority no order is created, and the attempt is written to the audit log:</p>
+<pre><code>{ "error": "approval_required",
+  "message": "This order is outside the agent’s authority. Call request_approval to send it to a human.",
+  "reasons": [
+    "Total €1,010.00 exceeds the agent’s ordering authority of €500.00.",
+    "The supplier does not state an available quantity for 1 products (terminal product)." ] }</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary><code>request_approval</code> <span>hand the decision to a human</span></summary>
+  <div class="body">
+    <div class="table"><table>
+      <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>quote_id</code></td><td>string, required</td><td>Still valid</td></tr>
+        <tr><td><code>idempotency_key</code></td><td>string, min 8 chars, required</td><td>The key of a refused <code>place_order</code> can be reused</td></tr>
+        <tr><td><code>note</code></td><td>string, max 400 chars</td><td>Why the agent proposes this order. Shown to the approver.</td></tr>
+      </tbody>
+    </table></div>
+<pre><code>{ "duplicate": false,
+  "order": {
+    "order_id": "AIMO-2026-0002", "status": "pending_approval", "status_label": "Waiting for approval",
+    "title": "Agent order: 1000 L laktoositon maitojuoma",
+    "created_by": "External agent (menu-planner-agent)",
+    "total_excl_vat": 1010, "vat": 136.35, "total_incl_vat": 1146.35,
+    "approval": { "required": true, "reasons": [
+      "The external agent (menu-planner-agent) asks for your approval. “School milk for week 47; cheapest verified lactose-free option.”",
+      "Total €1,010.00 exceeds the agent’s ordering authority of €500.00.",
+      "The supplier does not state an available quantity for 1 products (terminal product)." ] },
+    "confirmation": null, "…": "…" },
+  "next_step": "A human decides in the Aimo UI. Poll get_order_status." }</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary><code>get_order_status</code> <span>follow the order</span></summary>
+  <div class="body">
+    <p>Parameter: <code>order_id</code> (required). After the human approved in the Aimo UI:</p>
+<pre><code>{ "order": {
+    "order_id": "AIMO-2026-0002", "status": "submitted", "status_label": "Sent (simulation)",
+    "approval": { "required": true, "reasons": [ "…" ],
+                  "decidedBy": "Kitchen manager", "decidedAt": "2026-11-14T18:15:46.739Z" },
+    "recheck": { "at": "2026-11-14T18:15:46.739Z", "ok": true, "changes": [] },
+    "confirmation": "SIM-6E28EBB8",
+    "events": [
+      { "at": "2026-11-14T18:15:37.826Z", "actor": "External agent (menu-planner-agent)", "text": "Order prepared: 1 lines, €1,010.00 (excl. VAT). Prices, availability and allergens checked." },
+      { "at": "2026-11-14T18:15:37.826Z", "actor": "Aimo rules", "text": "Needs human approval: …" },
+      { "at": "2026-11-14T18:15:46.739Z", "actor": "Kitchen manager", "text": "Approved. Prices, availability and allergens were re-checked right before sending – no changes." },
+      { "at": "2026-11-14T18:15:46.984Z", "actor": "Aimo", "text": "Order recorded in the local simulation, confirmation SIM-6E28EBB8. Nothing was sent to Valio Aimo." } ],
+    "…": "…" } }</code></pre>
+  </div>
+</details>
+
+<details>
+  <summary><code>get_authority</code>, <code>get_price_availability</code>, <code>list_orders</code>, <code>get_audit_log</code> <span>the remaining tools</span></summary>
+  <div class="body">
+    <ul>
+      <li><code>get_authority</code> takes no parameters. It returns <code>per_order_limit_excl_vat</code>, <code>weekly_budget</code>, <code>spent_this_week</code>, <code>remaining_this_week</code>, <code>rules[]</code> (each with <code>effect</code>: <code>auto</code>, <code>human</code> or <code>never</code>), <code>supported_requirements</code> and <code>provenance</code>.</li>
+      <li><code>get_price_availability</code> takes <code>product_ids</code> (1–30) and <code>delivery_date</code>, both required. It always fetches fresh data. An unknown id comes back as <code>{ "product_id": "…", "error": "unknown_product" }</code>.</li>
+      <li><code>list_orders</code> returns <code>order_id</code>, <code>status</code>, <code>title</code>, <code>created_by</code>, <code>delivery_date</code>, <code>total_excl_vat</code> and <code>approval_required</code> for the 15 most recent orders from every source.</li>
+      <li><code>get_audit_log</code> takes optional <code>order_id</code> and <code>limit</code> (1–100, default 30) and returns entries newest first: <code>id</code>, <code>at</code>, <code>actor</code>, <code>action</code>, <code>text</code>, <code>orderId</code>, <code>hash</code>.</li>
+    </ul>
+  </div>
+</details>
+
+<h2 id="lifecycle">Order lifecycle</h2>
+<p><strong>One purchasing service, two transports.</strong> Aimo's kitchen assistant is the buyer's own agent; the wholesaler side provides the interface, deterministic rules and approval gate. Weekly orders, draft orders and chat quick orders use the same <code>orders.ts: prepareQuote()</code> and <code>createOrder()</code> functions as external agents: first a signed single-use quote, then an order from it. External agents use MCP; the kitchen assistant calls these functions in process, <strong>not through MCP</strong> or HTTP to itself.</p>
+<p>Allergen, lot-size, credit and fresh supplier checks are shared. Kitchen orders keep the kitchen limit; external agents keep their own limits. Chat quick orders always need confirmation. With approvers configured, unsigned kitchen orders always wait for an approver. The rules, not a language model, decide.</p>
+<div class="flow">
+  <div class="box accent">
+    <h4>1 · Quote</h4>
+    <p><code>prepare_order</code> returns a quote with fixed prices, a 15-minute expiry and a content hash. Lines that break a rule are refused here already. One quote, one order.</p>
+  </div>
+  <div class="arrow" aria-hidden="true">↓</div>
+  <div class="row">
+    <div class="box">
+      <h4>2a · <code>place_order</code></h4>
+      <ul>
+        <li>Fresh re-check of price, availability and allergens</li>
+        <li>Quote already used: <code>quote_already_used</code>, no second order</li>
+        <li>Rule broken: <code>rejected_by_rules</code>, no order</li>
+        <li>Price moved: <code>price_changed</code>, no order</li>
+        <li>Outside authority: <code>approval_required</code>, no order, audited</li>
+        <li>Otherwise: order created and approved by the rules</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>2b · <code>request_approval</code></h4>
+      <ul>
+        <li>Fresh re-check</li>
+        <li>Quote already used: <code>quote_already_used</code>, no second order</li>
+        <li>Rule broken: <code>rejected_by_rules</code>, no order</li>
+        <li>Otherwise: order <code>pending_approval</code>, visible in the Aimo UI with the agent's name, note and every reason</li>
+      </ul>
+    </div>
+  </div>
+  <div class="arrow" aria-hidden="true">↓</div>
+  <div class="box">
+    <h4>3 · Human decision (only after 2b)</h4>
+    <p>Approve, reject or cancel in the Aimo UI. Approving runs another fresh re-check. If a rule is now broken the order stays <code>pending_approval</code> with <code>recheck.ok = false</code>. Agents cannot approve, reject or cancel.</p>
+  </div>
+  <div class="arrow" aria-hidden="true">↓</div>
+  <div class="box accent">
+    <h4>4 · Submitted (simulated)</h4>
+    <p>The order is recorded locally with a confirmation <code>SIM-XXXXXXXX</code>. Nothing is sent to Valio Aimo.</p>
+  </div>
+</div>
+<div class="table">
+<table>
+  <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill warn">pending_approval</span></td><td>Waiting for a human in the Aimo UI</td></tr>
+    <tr><td><span class="pill ok">submitted</span></td><td>Recorded in the local simulation with a confirmation number. Final.</td></tr>
+    <tr><td><span class="pill stop">rejected</span></td><td>A human rejected it. Nothing was sent. Final.</td></tr>
+    <tr><td><span class="pill stop">cancelled</span></td><td>A human cancelled it. Nothing was sent. Final.</td></tr>
+    <tr><td><span class="pill info">approved</span></td><td>Defined in the contract but not observable today: approval and simulated submission happen in one step.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>There is no callback. Poll <code>get_order_status</code>.</p>
+
+<h2 id="quotes">Quotes and idempotency</h2>
+<ul>
+  <li><strong>Fixed price for automatic orders.</strong> A quote fixes lines, quantities and unit prices as observed when it was prepared. Both automatic kitchen orders and <code>place_order</code> refuse with <code>price_changed</code> if a live unit price differs by more than EUR 0.005. No order is created; prepare a new quote.</li>
+  <li><strong>Expiry.</strong> 15 minutes (<code>expires_at</code>). An expired or unknown quote returns <code>rejected_by_rules</code>.</li>
+  <li><strong>Single use.</strong> A quote produces at most one order. After that, any call with another idempotency key returns <code>quote_already_used</code> with <code>order_id</code> and <code>order_status</code>. The quote stays used when the order is rejected or cancelled: prepare a new quote. A refused <code>place_order</code> created no order and leaves the quote usable.</li>
+  <li><strong>Content hash.</strong> <code>content_sha256</code> is the SHA-256 of the stored quote content: agent name, request, delivery date, lines, totals and shortfall. It identifies exactly what was quoted. The server does not ask for it back.</li>
+  <li><strong>Approval path unchanged.</strong> <code>request_approval</code>, over-limit kitchen orders and mandatory chat confirmations do not refuse on a price difference. The pending order uses fresh prices. Human approval re-checks and submits at the price checked at that moment; changes are recorded in the order events and the final total in the audit. The approval click currently sends at a changed price without a second preview. The signed confirmation contains final prices, and the UI proof view shows differences from the original quote.</li>
+  <li><strong>Idempotency key.</strong> Required for <code>place_order</code> and <code>request_approval</code>, at least 8 characters. Reuse it on every retry: a key that already has an order returns that order with <code>duplicate: true</code>.</li>
+  <li><strong>Refused attempts leave no order.</strong> The key of a refused <code>place_order</code> can be used for the following <code>request_approval</code>.</li>
+  <li><strong>Never twice.</strong> Approving an already submitted order does nothing.</li>
+  <li><strong>Scope.</strong> Quotes belong to an account and recipient. Kitchen quotes have a separate owner (<code>source: ui</code>, signed recipient <code>id: kitchen</code>, <code>identity: kitchen</code>, name Aimo). Neither shared-demo nor registered-agent MCP credentials can use them, nor can the kitchen consume an MCP quote. A registered agent's keys are its own. Quotes and keys made with the shared demo token are shared only by its users.</li>
+  <li><strong>Kitchen retries.</strong> Existing content-based keys (delivery date, products and quantities) are checked before preparing a quote. Sequential or concurrent retries return the earlier order, with no surplus quote. Rejected or cancelled kitchen orders need a fresh quote.</li>
+</ul>
+
+<h2 id="authority">Authority</h2>
+<div class="table">
+<table>
+  <thead><tr><th>Effect</th><th>Rule</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill ok">automatic</span></td><td>An agent order up to the agent's per-order limit and inside its weekly limit (registered agent), or up to the account's shared limit (demo token, EUR 500 excl. VAT for <code>school</code>), that fits the account's weekly budget, has no passed cutoff</td></tr>
+    <tr><td><span class="pill warn">needs a human</span></td><td>Total above the agent's limit · the agent's weekly limit or the account's weekly budget would be exceeded · an order cutoff has passed · the agent asks with <code>request_approval</code></td></tr>
+    <tr><td><span class="pill stop">never</span></td><td>A product that is <code>fail</code> or <code>unknown</code> for a requirement · a product without a price or without availability · more than the stated availability · submission without a fresh re-check (if the supplier API is unreachable, nothing is sent) · the same order twice</td></tr>
+  </tbody>
+</table>
+</div>
+<p>A registered agent's weekly limit counts what it ordered on its own authority in the last 7 days; orders a person approved do not use it up. The check runs at the quote and inside shared order creation immediately before automatic submission, or again at human approval. Unstated stock quantities are notes for both sources, not approval reasons; some historical examples above predate this behaviour. Creating, changing and revoking an agent is written to the audit log with the person's name.</p>
+<p>The live values and rule texts are in <code>get_authority</code>. Approval cannot override a "never" rule: the approver's click triggers the same checks again.</p>
+
+<h2 id="partial">Partial availability and substitution</h2>
+<p>Aimo never substitutes silently.</p>
+<h3>Named options and supplier evidence</h3>
+<p>For unambiguous needs, <code>ranked_options</code> shows up to three role winners: <code>cheapest</code> (whole-pack covering cost), <code>most_reliable</code> (highest available delivery history), <code>most_sustainable</code> (the rule below). A product winning several roles appears once, with a <code>roles</code> array of <code>{ role, label }</code>. No supporting data means no role. Ambiguous needs still show up to five verified choices, without endorsements. Automatic allocation is unchanged: cheapest first, with availability-capped splits. Select another product with <code>need.product_id</code> or <code>items</code>.</p>
+<p>Each option has structured <code>basis</code>: <code>cost_to_cover_eur_excl_vat</code>, rounded <code>sales_units</code>, <code>covered_amount</code>, <code>delivery_reliability_history</code>, packaging-label ids, <code>country_of_origin</code>, and <code>co2_kg_per_kg_category_average</code>. Missing data is null. Notes show partial availability: a full covering price is hypothetical when stock is insufficient. Product descriptions include <code>packaging_labels</code> (ids and localized names), <code>country_of_origin</code> and <code>packaging_label_note</code>. Temperature markers are excluded; untranslated labels remain visible by id. These are supplier declarations, and <strong>Aimo does not verify certificates</strong>.</p>
+<p><strong>Sustainability rule:</strong> require a known environmental/responsibility label: EU organic, Nordic Swan, Rainforest Alliance, EU Ecolabel, MSC, Fairtrade, ASC, KRAV, Finnish organic Sun, Soil Association, UTZ or Dolphin Safe. Multiple labels earn no extra points. Prefer declared Finnish origin among these as a local-sourcing choice, not evidence of lower transport emissions. Use lower category-average CO₂ only when all remaining candidates share one category and all have a value; otherwise do not use CO₂ for ranking. Remaining ties follow the covering-cost order. The winner carries the localized rule in <code>basis.sustainability_rule</code>. Health/origin marks (Heart Symbol, Food from Finland, Key Flag) and unrecognised labels are shown but not counted as environmental evidence. Missing evidence does not prove another product worse. CO₂ is per kg, not a measured SKU footprint or a calculated total for litres. This is not a life-cycle assessment and does not estimate waste; a larger pack with more excess may win, with amount and cost shown.</p>
+<h3>Declare replacement intent</h3>
+<p>Set optional <code>substitute_for</code> on an item or need to name the product being replaced. It must exist and differ from the selected product; a merged line cannot have conflicting source ids (<code>invalid_request</code>). All normal checks still apply. A new replacement gets <code>substitution: true</code> and a human-approval reason; <code>place_order</code> refuses with <code>approval_required</code>, then <code>request_approval</code> sends it to a person.</p>
+<p>The account has accepted the replacement product if it is in its approved overrides/swaps or any previously submitted order. After human approval and submission, a fresh quote needs no repeated substitution approval; other limits still apply. Acceptance is per product and account, not per pair. No parallel memory is stored. The quote keeps its original flag. Quote/order lines retain <code>substitute_for</code>; the order also shows <code>substitution_note</code>, including after price-change re-approval. The signed-document schema is unchanged. Kitchen replacements already require a human click and use existing memory; a recipe's own special-diet product is not a replacement.</p>
+<p><strong>Limit:</strong> if an agent omits <code>substitute_for</code>, it simply orders that product within its authority. The rule cannot detect an undeclared substitution. Need splitting alone does not activate the rule.</p>
+<ul>
+  <li><strong>Explicit <code>items</code>.</strong> Exactly these products are quoted. If the stated availability is lower than the quantity, the quote is refused: <code>"…: only 19 available, order has 5000."</code></li>
+  <li><strong>Lot sizes.</strong> <code>order_multiple</code> on products and quote lines is the step the supplier's lot size allows (1 for most products; a lot of 0.01 means 1; a fractional lot such as 1.5 is read cautiously as 3, 6, 9 …). A need is rounded up to the next allowed quantity, and the line's <code>why</code> says so. An item off the lot is refused: <code>"…: sold in lots of 2 sales units, so a quantity of 3 is not allowed. The nearest allowed quantities are 2 and 4."</code></li>
+  <li><strong>A <code>need</code>.</strong> All usable name matches are checked before relevance restriction. Whole name words are preferred, but do not prove that a word is the head noun rather than a flavour. Different categories mean different types, except reviewed equivalences for explicit <code>jauhoseos</code> (21310/21320/21370) and <code>olut</code> (84966/85001/21405). More than one type or unrequested alcohol-free, decaffeinated or pre-cooked wording requires a choice. There is no dominant-category shortcut.</li>
+  <li><strong>Covering cost.</strong> Verified, orderable options are ranked by the total cost of covering the amount in whole sales units and allowed lots, not €/kg or €/L. Ties prefer smaller packs, then historical reliability. Allocation is capped by availability and reranked for the remainder, across at most three products. This is greedy, not globally optimal mixed-pack optimisation. Every line says <code>why</code> it is there.</li>
+  <li><strong>Several needs.</strong> Each entry is reported in <code>fulfilment_by_need</code>. A missing need is <code>not_found</code>; an ambiguous one is <code>selection_required</code>, with <code>selection_reason</code> and verified <code>ranked_options</code>. Both add no line and do not stop the others. Ambiguity is measured before unsafe products are removed, so a missing declaration cannot turn a flavour into the intended ingredient. Choose explicit <code>items</code>, <code>need.product_id</code> or a more precise query.</li>
+  <li><strong>Shortfall.</strong> <code>fulfilment</code> reports <code>requested</code>, <code>covered</code>, <code>shortfall</code> and <code>split_across_products</code>. If the need cannot be covered, the quote is issued for the covered part and the agent decides.</li>
+  <li><strong>One product only.</strong> With <code>need.product_id</code> the shortfall is reported and not filled. Up to three verified <code>substitute_options</code> are informational only: supplier pairs first, then same category, then other verified query matches, by covering cost within each tier. Each must cover the shortfall alone. Each carries <code>tier</code> (<code>supplier_substitute</code>, <code>same_category</code>, <code>other_verified</code>), <code>tier_label</code>, <code>basis.sales_units</code> and the pinned <code>substitute_for</code> for a new request. These appear in <code>fulfilment_by_need</code>, also at the top level for one need; no-quote errors retain them per need. Nothing is silently added. Supplier pairs do not guarantee recipe/flavour equivalence. Real example: 300 kg requested, 77 sacks of 3 kg available, <code>covered: 231</code>, <code>shortfall: 69</code>.</li>
+  <li><strong>What was ruled out.</strong> <code>excluded_by_rules</code> counts products dropped as <code>failed</code> or <code>unknown</code> and gives up to three examples with the reason. If no lines are allocated, the error is <code>selection_required</code> when any need needs a choice, otherwise <code>no_suitable_product</code>. Both retain <code>fulfilment_by_need</code> and create no quote.</li>
+</ul>
+
+<h2 id="errors">Error codes</h2>
+<div class="table">
+<table>
+  <thead><tr><th>Code</th><th>Returned by</th><th>Meaning</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>approval_required</code></td><td><code>place_order</code></td><td>Outside the agent's authority. <code>reasons[]</code> says why.</td><td>Call <code>request_approval</code> with the same quote</td></tr>
+    <tr><td><code>price_changed</code></td><td><code>place_order</code></td><td>A live price differs from the quote. <code>changes[]</code> lists them.</td><td>Prepare a new quote</td></tr>
+    <tr><td><code>rejected_by_rules</code></td><td><code>prepare_order</code>, <code>place_order</code>, <code>request_approval</code></td><td>A rule refused it: verdict <code>fail</code> or <code>unknown</code>, product not in the assortment, quantity not a positive whole number or not a multiple of <code>order_multiple</code>, no price, not available, more than available, supplier API unreachable, quote unknown or expired</td><td>Read <code>message</code>; change product or quantity, or retry later</td></tr>
+    <tr><td><code>quote_already_used</code></td><td><code>place_order</code>, <code>request_approval</code></td><td>The quote already produced an order. <code>order_id</code> and <code>order_status</code> name it.</td><td>Check the order, or prepare a new quote</td></tr>
+    <tr><td><code>supplier_rate_limited</code></td><td><code>prepare_order</code>, <code>place_order</code>, <code>request_approval</code></td><td>The supplier API's call budget is used up (it blocks for 30 s after too many calls). <code>retry_after_seconds</code> says how long. Nothing was created or sent.</td><td>Wait that long, then repeat the call</td></tr>
+    <tr><td><code>no_suitable_product</code></td><td><code>prepare_order</code> with <code>need</code> or <code>needs</code></td><td>No verified, orderable product for any need, and no <code>items</code>. <code>excluded</code> and <code>fulfilment_by_need</code> show what was ruled out.</td><td>Change the query or escalate to a human</td></tr>
+    <tr><td><code>selection_required</code></td><td><code>prepare_order</code> with needs</td><td>No lines allocated and at least one ambiguous need. <code>fulfilment_by_need</code> carries reasons and verified alternatives; no quote is created.</td><td>Ask the buyer, refine the query or select explicit products</td></tr>
+    <tr><td><code>invalid_request</code></td><td><code>prepare_order</code></td><td>None of <code>items</code>, <code>need</code> and <code>needs</code></td><td>Fix the call</td></tr>
+    <tr><td><code>unknown_product</code></td><td><code>check_allergens</code>, <code>get_price_availability</code></td><td>No such product id</td><td>Use <code>search_products</code></td></tr>
+    <tr><td><code>unknown_order</code></td><td><code>get_order_status</code></td><td>No such order id</td><td>Use <code>list_orders</code></td></tr>
+    <tr><td><code>internal_error</code></td><td>any</td><td>Unexpected failure. Nothing was ordered.</td><td>Retry, then report</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Arguments that do not match a tool's schema are rejected before the tool runs, with a plain-text message that starts with <code>MCP error -32602</code>. Transport errors are HTTP 401 (missing, wrong, revoked or expired token), 403 (a registered agent asked for another account), 405 (not POST) and 500, each with a JSON-RPC error body.</p>
+
+<h2 id="trust">Trust and provenance</h2>
+<div class="table">
+<table>
+  <thead><tr><th>Field</th><th>Where</th><th>What it tells you</th></tr></thead>
+  <tbody>
+    <tr><td><code>provenance</code></td><td>most answers</td><td>The three sources in plain words: challenge catalog (synthetic), live mock API, local order simulation</td></tr>
+    <tr><td><code>offer.source</code></td><td>every offer</td><td><code>valio_mock</code>: the Valio Aimo challenge mock API</td></tr>
+    <tr><td><code>offer.observed_at</code></td><td>every offer</td><td>When the price and availability were fetched. Search results may be up to 60 seconds old; quotes, orders and approvals always use fresh data.</td></tr>
+    <tr><td><code>supplier_data_updated</code></td><td>every product</td><td>When the supplier last updated the data the verdicts are based on</td></tr>
+    <tr><td><code>evidence[]</code></td><td>every verdict</td><td>The supplier facts behind it, by kind: <code>declared</code>, <code>ingredient</code>, <code>claim</code>, <code>missing</code>, <code>note</code></td></tr>
+    <tr><td><code>delivery_reliability_history</code></td><td>products, ranked options</td><td>Historical reliability from the challenge dataset. Not a promise.</td></tr>
+    <tr><td><code>co2_kg_per_kg_category_average</code></td><td>products</td><td>A category average, not a product measurement</td></tr>
+    <tr><td><code>content_sha256</code></td><td>quotes</td><td>Fingerprint of the quoted content</td></tr>
+    <tr><td><code>signed_quote</code>, <code>signed_confirmation</code></td><td>quotes, submitted orders</td><td>The server's signature over the commitment, see below</td></tr>
+    <tr><td><code>identity</code></td><td><code>get_authority</code>, signed quote</td><td>Whether the agent's name is registered (from its token) or self-declared</td></tr>
+    <tr><td><code>integration</code></td><td>every order</td><td>Prices and availability from the mock API; submission is a local simulation</td></tr>
+    <tr><td><code>approval</code>, <code>recheck</code>, <code>events</code></td><td>orders</td><td>Who decided, when, and what the last fresh re-check found</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="signatures">Signed quotes and order confirmations</h2>
+<p>An agent does not have to take a price or a confirmation on trust. The server signs both with its own key, with open standards only. The same signatures are retained on kitchen and external-agent orders, independently of quote cleanup.</p>
+<p><strong>Evidence in the UI.</strong> An expandable row on each order card shows the quote id, issuer, recipient, account, price/availability observation time, validity and signed confirmation. The browser verifies the signatures itself with WebCrypto Ed25519 and the same-origin <code>/.well-known/jwks.json</code>. Unsupported browsers, unavailable keys and failed verification are explicitly labelled, never marked verified. Signed content and JWS can be viewed and copied. Differing quoted and submitted unit prices and totals are shown directly; if either signature is not verified, the comparison is explicitly labelled unverified. Signature validity is separate from quote expiry and single-use status. Old state files still load: legacy orders without retained quote evidence say that no quote is available.</p>
+<ul class="facts">
+  <li><b>Format</b>JWS compact serialization (RFC 7515) with JWT claim names (RFC 7519)</li>
+  <li><b>Algorithm</b><code>EdDSA</code> with Ed25519 (RFC 8037)</li>
+  <li><b>Public key</b>JWK Set (RFC 7517) at <a href="/.well-known/jwks.json"><code>GET /.well-known/jwks.json</code></a>; the key id is the JWK thumbprint (RFC 7638)</li>
+  <li><b>Signed quote</b><code>prepare_order.signed_quote</code>: issuer, agent and whether its identity is registered, account, quote id, expiry, delivery date, lines (product, GTIN, quantity, unit price), totals, and when price and availability were fetched</li>
+  <li><b>Signed confirmation</b><code>order.signed_confirmation</code> once an order is submitted: order id, confirmation number, quote id, lines, totals, who approved, and <code>"submission": "local_simulation"</code></li>
+</ul>
+<p>To verify: fetch the JWK Set from the host you connected to, require <code>alg</code> to be <code>EdDSA</code>, take the key with the header's <code>kid</code>, verify the signature over <code>&lt;header&gt;.&lt;payload&gt;</code>, then compare the payload with the plain answer.</p>
+<pre><code>import { createPublicKey, verify } from 'node:crypto';
+
+const { keys } = await (await fetch('https://&lt;your-aimo-host&gt;/.well-known/jwks.json')).json();
+const [h, p, sig] = signedQuote.split('.');
+const header = JSON.parse(Buffer.from(h, 'base64url'));
+const jwk = keys.find(k =&gt; k.kid === header.kid);
+const ok = header.alg === 'EdDSA' &amp;&amp; !!jwk
+  &amp;&amp; verify(null, Buffer.from(`${h}.${p}`), createPublicKey({ key: jwk, format: 'jwk' }), Buffer.from(sig, 'base64url'));</code></pre>
+<p class="notice"><strong>What the signature proves, and what it does not.</strong> It proves that this Aimo server issued exactly this content and that nobody changed it afterwards. It does not prove that the price and availability are right: they come from the Valio Aimo challenge mock API, which does not sign its answers. It does not prove that an order reached a supplier: submission is a local simulation, and the signed confirmation says so. The key is not certified by a third party and is not rotated yet.</p>
+
+<h2 id="approvers">Human approvers</h2>
+<ul>
+  <li><strong>Open demo mode (default).</strong> No approvers are configured. Anyone who can open the Aimo UI can approve, and the log records "Kitchen manager". The UI and <code>GET /api/state</code> (<code>integration.access</code>) say so.</li>
+  <li><strong>With approvers</strong> (<code>APPROVERS</code>, names and PINs). Approving, rejecting and cancelling an order, registering, changing and revoking an agent, changing the credit limit and resetting the demo need a signed-in approver. The UI asks for name and PIN when such an action is tried and then carries on. The approver's name goes into the audit log, the order and the signed confirmation. Everyday use stays open; an order nobody signed in for waits for an approver.</li>
+  <li><strong>PINs</strong> are not stored or logged, are compared in constant time, and five wrong ones lock the name for 15 minutes.</li>
+</ul>
+
+<h2 id="audit">Audit chain</h2>
+<p>Every action that matters is appended to one log with its actor: the kitchen manager or the signed-in approver by name, Aimo, Aimo rules, <code>Registered agent (&lt;name&gt;)</code>, or <code>External agent (&lt;name&gt;)</code> for the shared demo token. Each entry stores</p>
+<pre><code>hash = SHA-256( previous_hash + JSON(entry) )      first previous_hash = "genesis"</code></pre>
+<p>so changing or removing an earlier entry breaks every later hash. Agents read the log with <code>get_audit_log</code>. A real entry:</p>
+<pre><code>{ "id": "a16", "at": "2026-11-14T18:15:46.983Z", "actor": "Kitchen manager",
+  "action": "order_approved", "text": "Order AIMO-2026-0002 approved (€1,010.00).",
+  "orderId": "AIMO-2026-0002", "hash": "5765184681a524f3" }</code></pre>
+<p>The chain is tamper-evident for whoever holds the state file. It is not anchored outside the application, and the API shows hashes truncated to 16 hex characters, so an agent can reference entries but cannot recompute the chain from API output alone.</p>
+
+<h2 id="limits">Known limitations</h2>
+<ul>
+  <li><strong>The shared demo token is still accepted.</strong> Its users share one credential, pick any account and declare their own name. It is marked <code>self_declared</code> everywhere, but it is not switched off.</li>
+  <li><strong>Agent tokens are bearer tokens</strong>: whoever holds one can use it until it expires or is revoked.</li>
+  <li><strong>Signatures cover Aimo's commitment, not the supplier's data.</strong> One signing key, no rotation, no third-party certification.</li>
+  <li><strong>Approvers are a name and a PIN from server configuration</strong>, not accounts with roles. Without <code>APPROVERS</code> the UI is open.</li>
+  <li><strong>Fractional lot sizes</strong> are read cautiously (whole sales units that are a multiple of the lot). This is our assumption, not a confirmed supplier rule.</li>
+  <li><strong>The 429 behaviour is not verified against the live mock.</strong> Aimo paces its calls to 5 per second and waits out a cooldown after a 429, following Valio Aimo's description; 30 s is assumed when no <code>Retry-After</code> is sent.</li>
+  <li><strong>Conservative matching.</strong> Whole words, categories and a small set of variant markers are heuristics, not semantic understanding. Broad queries may need selection unnecessarily; same-category flavours and catalog errors can still escape detection. Explicit <code>items</code> avoid automatic interpretation.</li>
+  <li><strong>Replacement intent must be declared.</strong> The substitution rule requires <code>substitute_for</code>; undeclared changes are not detectable. Acceptance is per product/account, not pair-specific. Ordinary need splits are reported but do not themselves need substitution approval.</li>
+  <li><strong>"Spent this week"</strong> is the sum of all submitted orders in the kitchen's state, not a calendar-week window.</li>
+  <li><strong>Mock snapshot.</strong> The challenge availability data is fixed. Some cutoffs in it are already in the past, which by default forces human approval.</li>
+  <li><strong>Simulated submission.</strong> A <code>submitted</code> order has not reached any supplier.</li>
+</ul>
+
+</main>
+
+<footer>
+  <p>Full reference with every parameter and complete examples: <a href="agent-interface.md">agent-interface.md</a>. Aimo was built for the Junction 2026 Valio Aimo challenge, "Trusted Trade Agents". Examples are from a local run on 14 Nov 2026.</p>
+</footer>
+
+</div>
+</body>
+</html>

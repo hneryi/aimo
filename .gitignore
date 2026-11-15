@@ -1,0 +1,16 @@
+node_modules/
+.env*
+!.env.example
+data/
+**/catalog*.json
+**/state*.json
+*.pem
+*.key
+*.p12
+*.pfx
+web/dist/
+dist/
+build/
+coverage/
+*.log
+.DS_Store
